@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Glow Hitster</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#1B1B2F;--fg:#fff;--muted:#a9a9c4;--accent:#E8505B}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+ padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));text-align:center}
+h1{margin:0;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+#play{width:min(60vw,240px);aspect-ratio:1;border-radius:50%;border:0;background:var(--accent);color:#fff;cursor:pointer;
+ display:grid;place-items:center;box-shadow:0 0 0 0 rgba(232,80,91,.6);transition:transform .15s}
+#play:active{transform:scale(.95)}
+#play.playing{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,80,91,.55)}100%{box-shadow:0 0 0 40px rgba(232,80,91,0)}}
+@media (prefers-reduced-motion:reduce){#play.playing{animation:none}}
+#play svg{width:40%;height:40%;fill:#fff}
+#msg{min-height:3em;max-width:30ch;color:var(--muted);line-height:1.5}
+/* Verstopte Spotify-speler: de iframe staat achter een dekkende laag, alleen de afspeelknop blijft aantikbaar als vangnet */
+#wrap{position:relative;width:min(92vw,360px);height:80px;border-radius:12px;overflow:hidden}
+#embed{position:absolute;inset:0}
+#mask{position:absolute;inset:0 64px 0 0;background:var(--bg)}
+#wrap.hidden{opacity:0;pointer-events:none;height:1px}
+#wrap.fallback #mask{inset:0 64px 0 0}
+#wrap.fallback::after{content:"";position:absolute;right:8px;top:12px;width:56px;height:56px;border:2px solid var(--accent);border-radius:50%;pointer-events:none}
+</style>
+</head>
+<body>
+<h1>Glow Hitster</h1>
+<button id="play" aria-label="Afspelen"><svg viewBox="0 0 24 24"><path id="icon" d="M8 5v14l11-7z"/></svg></button>
+<div id="msg">Laden…</div>
+<div id="wrap" class="hidden"><div id="embed"></div><div id="mask"></div></div>
+<script>
+const id=(location.hash||location.search).replace(/^[#?](t=)?/,'').trim();
+const btn=document.getElementById('play'),msg=document.getElementById('msg'),wrap=document.getElementById('wrap'),icon=document.getElementById('icon');
+const PLAY='M8 5v14l11-7z',PAUSE='M6 5h4v14H6zm8 0h4v14h-4z';
+let ctrl=null,paused=true,started=false;
+if(!/^[A-Za-z0-9]{22}$/.test(id)){msg.textContent='Geen kaart gevonden. Scan de QR-code op een kaart.';btn.disabled=true}
+window.onSpotifyIframeApiReady=api=>{
+  if(btn.disabled)return;
+  api.createController(document.getElementById('embed'),{uri:'spotify:track:'+id,width:'100%',height:80},c=>{
+    ctrl=c;msg.textContent='Tik om het nummer te starten';
+    c.addListener('playback_update',e=>{
+      paused=e.data.isPaused;
+      if(!paused){started=true;wrap.className='hidden';msg.textContent='Waar hoort dit nummer op je tijdlijn?'}
+      btn.classList.toggle('playing',!paused);icon.setAttribute('d',paused?PLAY:PAUSE);
+    });
+  });
+};
+btn.onclick=()=>{
+  if(!ctrl)return;
+  ctrl.togglePlay();
+  // Sommige telefoons blokkeren starten via onze knop: toon dan de (gemaskeerde) Spotify-knop.
+  setTimeout(()=>{if(!started&&paused){wrap.className='fallback';msg.textContent='Tik op het rondje hieronder om te starten'}},1800);
+};
+</script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+</body>
+</html>
